@@ -4,7 +4,7 @@ const { autoUpdater } = require('electron-updater')
 const Store = require('electron-store').default
 const Database = require('better-sqlite3')
 
-// ── Step 6: persistent storage ──────────────────────────────
+// persistent storage
 const store = new Store()
 const db = new Database(path.join(app.getPath('userData'), 'notes.db'))
 
@@ -17,7 +17,7 @@ db.exec(`
   )
 `)
 
-// ── Step 4: BrowserWindow ────────────────────────────────────
+// BrowserWindow
 let mainWindow
 let tray
 
@@ -29,11 +29,11 @@ function createWindow() {
     minWidth: 700,
     minHeight: 500,
     icon: path.join(__dirname, '../../resources/icon.png'),
-    show: false, // avoid white flash
-    titleBarStyle: 'hiddenInset', // custom title bar
+    show: false, 
+    titleBarStyle: 'hiddenInset', 
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
-      contextIsolation: true, // Step 10: security
+      contextIsolation: true, 
       nodeIntegration: false,
       sandbox: true
     }
@@ -52,7 +52,7 @@ function createWindow() {
   }
 }
 
-// ── Step 5: native menu ──────────────────────────────────────
+// native menu
 function buildMenu() {
   const isMac = process.platform === 'darwin'
   const template = [
@@ -106,7 +106,7 @@ function buildMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 }
 
-// ── Step 5: system tray ──────────────────────────────────────
+// system tray
 function createTray() {
   const icon = nativeImage.createFromPath(path.join(__dirname, '../../resources/tray-icon.png'))
   tray = new Tray(icon)
@@ -128,7 +128,7 @@ function createTray() {
   tray.on('click', () => (mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show()))
 }
 
-// ── Step 3 + Step 7: IPC handlers ────────────────────────────
+// IPC handlers
 function registerIPC() {
   // Notes CRUD
   ipcMain.handle('notes:getAll', () =>
@@ -144,7 +144,7 @@ function registerIPC() {
   )
   ipcMain.handle('notes:delete', (_, id) => db.prepare('DELETE FROM notes WHERE id=?').run(id))
 
-  // Step 7: file export
+  // file export
   ipcMain.handle('dialog:exportNote', async (_, { title, content }) => {
     const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
       defaultPath: `${title}.txt`,
@@ -157,7 +157,7 @@ function registerIPC() {
     return !canceled
   })
 
-  // Step 7: import from file
+  // import from file
   ipcMain.handle('dialog:importNote', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
       properties: ['openFile'],
@@ -171,7 +171,7 @@ function registerIPC() {
     return null
   })
 
-  // Step 10: validate IPC path input
+  // validate IPC path input
   ipcMain.handle('shell:openExternal', async (_, url) => {
     if (url.startsWith('https://') || url.startsWith('http://')) {
       await shell.openExternal(url)
@@ -179,14 +179,14 @@ function registerIPC() {
   })
 }
 
-// ── Step 2: app lifecycle ─────────────────────────────────────
+// app lifecycle
 app.whenReady().then(() => {
   createWindow()
   buildMenu()
   createTray()
   registerIPC()
 
-  // Step 9: auto-updates (deferred so app starts fast)
+  // auto-updates (deferred so app starts fast)
   setTimeout(() => autoUpdater.checkForUpdatesAndNotify(), 3000)
 })
 
@@ -198,7 +198,7 @@ app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow()
 })
 
-// Step 10: block unexpected navigation
+// block unexpected navigation
 app.on('web-contents-created', (_, contents) => {
   contents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url)
@@ -211,7 +211,7 @@ app.on('web-contents-created', (_, contents) => {
   })
 })
 
-// Step 9: auto-update handler
+// auto-update handler
 autoUpdater.on('update-downloaded', () => {
   dialog
     .showMessageBox(mainWindow, {

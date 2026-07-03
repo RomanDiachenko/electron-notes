@@ -1,4 +1,4 @@
-// tests/notes.test.js — unit test (no Electron needed)
+// unit test (no Electron needed)
 import { describe, it, expect } from 'vitest'
 
 function formatTitle(content) {

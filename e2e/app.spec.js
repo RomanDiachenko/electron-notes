@@ -1,4 +1,4 @@
-// e2e/app.spec.js — full E2E with Playwright
+// full E2E with Playwright
 const { test, expect, _electron: electron } = require('@playwright/test')
 
 test('creates a note and types in it', async () => {

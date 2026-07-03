@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import NoteList from './components/NoteList'
 import Editor from './components/Editor'
 
-// ── Debounce lives OUTSIDE the component so the timer
-//    persists across renders and isn't reset on every keystroke
+// persists across renders and isn't reset on every keystroke
 function debounce(fn, delay) {
   let timer
   return (...args) => {
@@ -12,7 +11,7 @@ function debounce(fn, delay) {
   }
 }
 
-// ── Created ONCE at module level, not inside the component
+// Created ONCE at module level, not inside the component
 const debouncedSave = debounce(async ({ id, title, content, onDone }) => {
   await window.electronAPI.updateNote({ id, title, content })
   const updated = await window.electronAPI.getNotes()
@@ -26,12 +25,12 @@ export default function App() {
 
   const activeNote = notes.find((n) => n.id === activeId) || null
 
-  // ── Load notes on mount
+  // Load notes on mount
   useEffect(() => {
     window.electronAPI.getNotes().then(setNotes)
   }, [])
 
-  // ── Handlers
+  // Handlers
   const handleNewNote = useCallback(async () => {
     const result = await window.electronAPI.createNote()
     const fresh = await window.electronAPI.getNotes()
@@ -71,7 +70,7 @@ export default function App() {
     }
   }, [])
 
-  // ── Menu events from main process
+  // Menu events from main process
   useEffect(() => {
     const removeNewNote = window.electronAPI.onNewNote(handleNewNote)
     const removeExport = window.electronAPI.onExport(handleExport)
@@ -84,13 +83,13 @@ export default function App() {
   }, [activeNote])
 
   const handleChange = useCallback(({ id, title, content }) => {
-    // 1. Update the UI instantly — no waiting at all
+    // Update the UI instantly — no waiting at all
     setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, title, content } : n)))
 
-    // 2. Show "Saving..." immediately
+    // Show "Saving..." immediately
     setSaving(true)
 
-    // 3. Actual SQLite write deferred 800ms after typing stops
+    // Actual SQLite write deferred 800ms after typing stops
     debouncedSave({
       id,
       title,
