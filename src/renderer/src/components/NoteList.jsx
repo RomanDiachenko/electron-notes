@@ -13,7 +13,7 @@ export default function NoteList({ notes, activeId, onSelect, onNew, onDelete, o
   return (
     <aside className="note-list">
       <div className="note-list__toolbar">
-        <button className="btn btn--primary" onClick={onNew}>
+        <button className="btn btn--primary" onClick={onNew} data-testid="new-note-btn">
           + New
         </button>
         <button className="btn" onClick={onImport}>

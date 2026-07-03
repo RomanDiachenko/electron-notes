@@ -29,11 +29,11 @@ function createWindow() {
     minWidth: 700,
     minHeight: 500,
     icon: path.join(__dirname, '../../resources/icon.png'),
-    show: false, 
-    titleBarStyle: 'hiddenInset', 
+    show: false,
+    titleBarStyle: 'hiddenInset',
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
-      contextIsolation: true, 
+      contextIsolation: true,
       nodeIntegration: false,
       sandbox: true
     }
@@ -45,7 +45,7 @@ function createWindow() {
   mainWindow.once('ready-to-show', () => mainWindow.show())
 
   if (process.env.NODE_ENV === 'development') {
-    mainWindow.loadURL('http://localhost:5173') // Step 11: Vite dev server
+    mainWindow.loadURL('http://localhost:5173') // Vite dev server
     mainWindow.webContents.openDevTools()
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))

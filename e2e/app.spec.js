@@ -2,14 +2,16 @@
 const { test, expect, _electron: electron } = require('@playwright/test')
 
 test('creates a note and types in it', async () => {
-  const app = await electron.launch({ args: ['dist/main/index.js'] })
-  const win = await app.firstWindow()
+  const app = await electron.launch({ args: ['./out/main/index.js'] });
+  const win = await app.firstWindow();
 
-  await win.click('[data-testid="new-note-btn"]')
-  await win.fill('[data-testid="editor"]', 'My first note')
+  await expect(win.getByTestId('new-note-btn')).toBeVisible();
+  await win.getByTestId('new-note-btn').click();
 
-  const content = await win.inputValue('[data-testid="editor"]')
-  expect(content).toBe('My first note')
+  await expect(win.getByTestId('editor')).toBeVisible();
+  await win.getByTestId('editor').fill('My first note');
 
-  await app.close()
-})
+  await expect(win.getByTestId('editor')).toHaveValue('My first note');
+
+  await app.close();
+});
