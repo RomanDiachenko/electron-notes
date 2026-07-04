@@ -5,13 +5,13 @@ on:
     tags:
       - "v*"
 
-
 permissions:
   contents: write
 
 jobs:
-  release:
+  build:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
@@ -32,7 +32,45 @@ jobs:
       - name: Build application
         run: npm run build
 
-      - name: Package and publish
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx electron-builder --publish always
+      # No --publish here: just build/package locally, don't touch GitHub Releases yet
+      - name: Package application
+        run: npx electron-builder --publish never
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.os }}
+          path: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.zip
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.rpm
+            dist/*.yml
+            dist/*.blockmap
+          if-no-files-found: ignore
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist-all
+
+      - name: Flatten artifact folders
+        run: |
+          mkdir -p release-files
+          find dist-all -type f -exec cp {} release-files/ \;
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-files/*
+          draft: false
+          prerelease: false
