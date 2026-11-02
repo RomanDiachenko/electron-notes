@@ -1,0 +1,32 @@
+# Qualinaut: what to test in this project and what to produce.
+version: 1  # the layout of this file; `qlt migrate` upgrades it
+name: "electron-notes"
+
+targets:
+  - id: desktop  # the Electron build (Windows), driven through Appium
+    platform: desktop
+    app: "dist/win-unpacked/electron-notes.exe"  # electron-builder.yml: productName
+    # CI: dependencies (better-sqlite3 rebuilt for Electron by postinstall), the
+    # electron-vite build, then the unpacked app
+    build:
+      command: "npm ci && npm run build && npx electron-builder --config electron-builder.yml --win --dir --publish never"
+
+sources:
+  repos: ["."]  # source code: routes, guards, data access
+  docs: []
+  chats: []
+
+oracle:
+  type: requirements
+
+policy: intended
+
+pipeline:
+  goals: [test.results]
+  agents:
+    ui-explorer: {}
+    code-linker: {}
+    test-generator: {}
+  gates: []
+
+flows: {}

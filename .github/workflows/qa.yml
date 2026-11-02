@@ -1,0 +1,154 @@
+# Qualinaut pipeline (GitHub Actions), written by `qlt ci`. Edit freely.
+# Made from project.yaml a0a420c36389: `qlt doctor` says when it has changed.
+# Fast job: committed generated tests (smoke or healthcheck) on every change.
+# Scheduled job (0 22 * * *): `qlt run tests`, fails past `never`.
+# Set these as CI secrets: QLT_GITHUB_TOKEN.
+# QLT_GITHUB_TOKEN: a token that can read RomanDiachenko/qualinaut releases (Contents: read); qlt-install.py installs Qualinaut 0.5.8.4 with it.
+# No generated web tests yet: run `qlt run tests` and commit them.
+# Desktop targets (desktop): a job each on windows-latest, on the schedule;
+# it builds the app, installs Appium's Windows driver, runs `qlt run tests`.
+# Round summary: a last job (`round`) sums up every scheduled job from their artifacts (`qlt round`), in its job summary and the artifact `qa-round`.
+
+name: qa
+'on':
+  pull_request: null
+  push:
+    branches:
+    - main
+  schedule:
+  - cron: 0 22 * * *
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Explore only this target (its id; empty: every target)'
+        required: false
+        default: ''
+        type: string
+      chain:
+        description: 'Set by the workflow itself: which run of a chain going on with an unfinished exploration (0: a new one)'
+        required: false
+        default: '0'
+        type: string
+jobs:
+  desktop-desktop:
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.target == '' || inputs.target == 'desktop'))
+    runs-on: windows-latest
+    timeout-minutes: 355
+    permissions:
+      contents: read
+      actions: write
+    env:
+      QLT_GITHUB_TOKEN: ${{ secrets.QLT_GITHUB_TOKEN }}
+      QLT_CHAIN: ${{ inputs.chain || '0' }}
+      QLT_CONTINUE: ${{ (inputs.chain || '0') != '0' && '--set ui-explorer.continue_unfinished=true' || '' }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - uses: actions/setup-node@v4
+      with:
+        node-version: lts/*
+    - name: build desktop
+      run: npm ci && npm run build && npx electron-builder --config electron-builder.yml --win --dir --publish never
+    - name: Appium with the Windows driver
+      run: 'npm install -g appium
+
+        appium driver install windows'
+    - name: WinAppDriver
+      shell: pwsh
+      run: '$exe = "${env:ProgramFiles(x86)}\Windows Application Driver\WinAppDriver.exe"
+
+        if (-not (Test-Path $exe)) { choco install winappdriver -y --no-progress }
+
+        reg add HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock /v AllowDevelopmentWithoutDevLicense /t REG_DWORD /d 1 /f
+
+        '
+    - run: python qlt-install.py mobile
+    - uses: actions/cache/restore@v4
+      with:
+        path: '.qlt/cache
+
+          .qlt/qlt.db
+
+          .qlt/qlt.db-wal
+
+          .qlt/qlt.db-shm
+
+          .qlt/baseline'
+        key: qlt-cache-desktop-desktop-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: qlt-cache-desktop-desktop-
+    - run: qlt doctor --target desktop
+      continue-on-error: true
+    - run: qlt run tests --target desktop --fail-on never --time 5h $QLT_CONTINUE
+    - name: changes since the previous run
+      if: '!cancelled()'
+      run: "if [ -f \".qlt/baseline/desktop.json\" ]; then\n  qlt agent behavior-comparator --target desktop --set behavior-comparator.baseline=.qlt/baseline --fail-on never || true\nfi\nqlt agent golden-recorder --target desktop --set golden-recorder.output=.qlt/baseline --fail-on never || true\n"
+    - if: always()
+      uses: actions/cache/save@v4
+      with:
+        path: '.qlt/cache
+
+          .qlt/qlt.db
+
+          .qlt/qlt.db-wal
+
+          .qlt/qlt.db-shm
+
+          .qlt/baseline'
+        key: qlt-cache-desktop-desktop-${{ github.run_id }}-${{ github.run_attempt }}
+    - name: go on in a next run if the map is unfinished
+      if: '!cancelled() && github.event_name != ''pull_request'''
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: "chain=\"${QLT_CHAIN:-0}\"\nworkflow=\"${GITHUB_WORKFLOW_REF%@*}\"\nworkflow=\"${workflow##*/}\"\nif [ \"$chain\" -ge 20 ]; then\n  echo \"20 runs in a row: not going on (start the workflow to go on)\"\n  exit 0\nfi\nif qlt unfinished --target desktop; then\n  gh workflow run \"$workflow\" -R \"$GITHUB_REPOSITORY\" --ref \"$GITHUB_REF_NAME\" -f target=desktop -f chain=$((chain + 1))\nfi\n"
+    - if: always()
+      run: qlt report --format md > qa-report.md && cat qa-report.md >> "$GITHUB_STEP_SUMMARY" || true
+    - if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: qa-desktop-desktop
+        path: '.qlt/artifacts
+
+          generated-tests
+
+          golden
+
+          qa-report.md'
+    concurrency:
+      group: qlt-${{ github.workflow }}-desktop
+      cancel-in-progress: false
+  round:
+    needs:
+    - desktop-desktop
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    env:
+      QLT_GITHUB_TOKEN: ${{ secrets.QLT_GITHUB_TOKEN }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - run: python qlt-install.py
+    - name: the artifacts of the round's jobs
+      uses: actions/download-artifact@v4
+      with:
+        pattern: qa*
+        path: ${{ runner.temp }}/qlt-round
+    - name: one summary of the round
+      env:
+        QLT_NEEDS: ${{ toJSON(needs) }}
+      run: 'echo "$QLT_NEEDS" > needs.json
+
+        qlt round ${{ runner.temp }}/qlt-round --jobs needs.json --output qa-round >> "$GITHUB_STEP_SUMMARY"
+
+        '
+    - if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: qa-round
+        path: qa-round
